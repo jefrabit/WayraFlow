@@ -1,0 +1,19 @@
+# Local artifacts
+.env
+*.exe
+*.log
+
+# Go
+backend/bin/
+backend/coverage.out
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

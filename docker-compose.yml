@@ -30,6 +30,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/api", "-healthcheck"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-4200}:80"
+    depends_on:
+      - backend
 
 volumes:
   db-data:
