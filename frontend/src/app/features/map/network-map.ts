@@ -49,7 +49,7 @@ interface Point {
           [attr.x]="labelX(c)"
           [attr.y]="labelY(c)"
           class="corridor-label"
-        >{{ c.properties.id }} · {{ c.properties.name }}</text>
+        >{{ c.properties.id }}</text>
       }
 
       @for (n of nodes(); track n.properties.id) {
@@ -81,6 +81,11 @@ interface Point {
         </g>
       }
     </svg>
+    <div class="corridors">
+      @for (c of corridors(); track c.properties.id) {
+        <span><b>{{ c.properties.id }}</b> {{ c.properties.name }}</span>
+      }
+    </div>
     <div class="legend">
       <span><i class="dot low"></i> &lt; 10 s</span>
       <span><i class="dot mid"></i> 10–20 s</span>
@@ -126,7 +131,30 @@ interface Point {
     .corridor-label {
       fill: #6d8aa6;
       font-size: 11px;
+      text-anchor: middle;
       font-family: ui-monospace, 'Cascadia Code', monospace;
+      stroke: #0b1420;
+      stroke-width: 3px;
+      paint-order: stroke;
+    }
+    .corridors {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 10px;
+      border: 1px solid #1e3145;
+      border-radius: 8px;
+      background: rgba(11, 20, 32, 0.78);
+      color: #8aa4bd;
+      font-size: 10px;
+      font-family: ui-monospace, 'Cascadia Code', monospace;
+    }
+    .corridors b {
+      color: #57c4a8;
+      margin-right: 4px;
     }
     .legend {
       display: flex;
@@ -192,40 +220,28 @@ export class NetworkMap {
   });
 
   x(feature: GeoFeature): number {
-    const b = this.bounds();
-    const [lon] = this.firstPoint(feature);
-    const pad = 0.12;
-    return ((lon - b.minLon) / (b.maxLon - b.minLon || 1)) * (800 * (1 - pad * 2)) + 800 * pad;
+    return this.toX(this.firstPoint(feature)[0]);
   }
 
   y(feature: GeoFeature): number {
-    const b = this.bounds();
-    const [, lat] = this.firstPoint(feature);
-    const pad = 0.12;
-    return ((b.maxLat - lat) / (b.maxLat - b.minLat || 1)) * (520 * (1 - pad * 2)) + 520 * pad;
+    return this.toY(this.firstPoint(feature)[1]);
   }
 
   linePoints(feature: GeoFeature): string {
     if (feature.geometry.type !== 'LineString') {
       return '';
     }
-    const b = this.bounds();
-    const pad = 0.12;
     return feature.geometry.coordinates
-      .map(([lon, lat]) => {
-        const x = ((lon - b.minLon) / (b.maxLon - b.minLon || 1)) * (800 * (1 - pad * 2)) + 800 * pad;
-        const y = ((b.maxLat - lat) / (b.maxLat - b.minLat || 1)) * (520 * (1 - pad * 2)) + 520 * pad;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
+      .map(([lon, lat]) => `${this.toX(lon).toFixed(1)},${this.toY(lat).toFixed(1)}`)
       .join(' ');
   }
 
   labelX(feature: GeoFeature): number {
-    return this.x(feature) + 10;
+    return Math.min(Math.max(this.midPoint(feature)[0], 40), 760);
   }
 
   labelY(feature: GeoFeature): number {
-    return this.y(feature) - 10;
+    return this.midPoint(feature)[1] + 16;
   }
 
   radius(feature: GeoFeature): number {
@@ -259,5 +275,41 @@ export class NetworkMap {
       return feature.geometry.coordinates;
     }
     return feature.geometry.coordinates[0] ?? [0, 0];
+  }
+
+  // midPoint returns the middle of the longest segment, which keeps corridor
+  // labels away from the nodes at the ends of short polylines.
+  private midPoint(feature: GeoFeature): [number, number] {
+    if (feature.geometry.type === 'Point') {
+      const [lon, lat] = feature.geometry.coordinates;
+      return [this.toX(lon), this.toY(lat)];
+    }
+    const points = feature.geometry.coordinates.map(
+      ([lon, lat]) => [this.toX(lon), this.toY(lat)] as [number, number],
+    );
+    let best: [number, number] = points[0] ?? [0, 0];
+    let bestLength = -1;
+    for (let i = 1; i < points.length; i++) {
+      const [x1, y1] = points[i - 1];
+      const [x2, y2] = points[i];
+      const length = Math.hypot(x2 - x1, y2 - y1);
+      if (length > bestLength) {
+        bestLength = length;
+        best = [(x1 + x2) / 2, (y1 + y2) / 2];
+      }
+    }
+    return best;
+  }
+
+  private toX(lon: number): number {
+    const b = this.bounds();
+    const pad = 0.12;
+    return ((lon - b.minLon) / (b.maxLon - b.minLon || 1)) * (800 * (1 - pad * 2)) + 800 * pad;
+  }
+
+  private toY(lat: number): number {
+    const b = this.bounds();
+    const pad = 0.12;
+    return ((b.maxLat - lat) / (b.maxLat - b.minLat || 1)) * (520 * (1 - pad * 2)) + 520 * pad;
   }
 }

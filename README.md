@@ -7,6 +7,8 @@ Compara los planes de ciclo fijo actuales con planes optimizados por un algoritm
 Está dirigida a gestores municipales de tránsito y a evaluadores técnicos.
 Demuestra que un plan de tiempos exportable, sin hardware nuevo, puede reducir espera, colas y CO₂ en los semáforos existentes.
 
+![Tablero de WayraFlow: red de Juliaca, comparación de estrategias y simulación del nodo N1](docs/captura-tablero.png)
+
 ## 1.1 Cómo ejecutar
 
 Requisitos: Docker 24+ para el stack completo; Go 1.23+ y Node 22+ para
