@@ -2,15 +2,33 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"wayraflow/backend/internal/db"
 	"wayraflow/backend/internal/httpapi"
 )
 
 func main() {
+	if url := os.Getenv("DATABASE_URL"); url != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		pool, err := db.Connect(ctx, url)
+		if err != nil {
+			log.Fatalf("database: %v", err)
+		}
+		if err := db.Migrate(ctx, pool); err != nil {
+			log.Fatalf("migrations: %v", err)
+		}
+		cancel()
+		defer pool.Close()
+		log.Print("database migrations applied")
+	} else {
+		log.Print("DATABASE_URL not set; starting without database")
+	}
+
 	addr := ":" + envOr("PORT", "8080")
 	srv := &http.Server{
 		Addr:              addr,
