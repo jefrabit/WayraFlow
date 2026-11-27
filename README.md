@@ -2,7 +2,7 @@
 
 ## 1. Resumen
 
-WayraFlow es una plataforma web, 100 % client-side, de optimización semafórica a escala de ciudad para Juliaca (San Román, Puno, Perú).
+WayraFlow es una plataforma web (Angular + Go + PostgreSQL/PostGIS) de optimización semafórica a escala de ciudad para Juliaca (San Román, Puno, Perú).
 Compara los planes de ciclo fijo actuales con planes optimizados por un algoritmo genético (verdes por intersección y desfases por corredor).
 Está dirigida a gestores municipales de tránsito y a evaluadores técnicos.
 Demuestra que un plan de tiempos exportable, sin hardware nuevo, puede reducir espera, colas y CO₂ en los semáforos existentes.
@@ -82,15 +82,18 @@ N8 se optimiza en forma aislada, solo con sus verdes y sin offset.
 
 | Pieza | Elección | Justificación |
 |---|---|---|
-| Build | Vite + TypeScript | Tipado estricto y build estático desplegable en cualquier hosting |
+| Frontend | Angular + TypeScript | Estructura por componentes y servicios para las vistas ciudad y nodo |
 | Mapa | MapLibre GL JS | Renderizado WebGL de GeoJSON y estilos por dato sin clave de API |
-| Vista nodo | Canvas 2D | Cientos de vehículos a 60 fps sin costo de DOM |
-| Cálculo | Web Worker | El algoritmo genético no bloquea la interfaz |
-| Pruebas | Vitest | Mismo pipeline que Vite |
+| Vista nodo | Canvas 2D (en el navegador) | La micro-simulación IDM anima cientos de vehículos a 60 fps sin viajes al servidor |
+| Backend | Go (API HTTP/JSON) | Modelo de ciudad, algoritmo genético, Webster, emisiones, KPIs y exportación; cómputo rápido y concurrente |
+| Base de datos | PostgreSQL + PostGIS | Red vial, nodos y corredores como geometrías; escenarios, planes y corridas con sus KPIs |
+| Ejecución | Docker Compose | Un solo `docker compose up` levanta base de datos, backend y frontend |
+
+Reparto: Go calcula y persiste; Angular visualiza y ejecuta solo la micro-simulación de la vista nodo.
 
 ### 4.2 Datos
 
-- La red se extrae una sola vez con la consulta de 3.1 y se guarda en `data/juliaca.geojson`. La demo funciona sin internet.
+- La red se extrae una sola vez con la consulta de 3.1, se guarda como `data/juliaca.geojson` en el repositorio y se carga en PostGIS al iniciar. La demo no depende de internet: el mapa base no usa teselas externas.
 - Licencia: © colaboradores de OpenStreetMap, bajo [ODbL 1.0][odbl]. La atribución sigue [osm.org/copyright][osmcopy] y aparece visible en el mapa.
 
 ### 4.3 Modelo de ciudad (mesoscópico)
@@ -121,7 +124,7 @@ El semáforo aparece como un vehículo virtual detenido en la línea de pare dur
   - `g_{n,p}` es la fracción de verde por fase de cada nodo, reparada para que `Σg + L_n = C`.
   - `θ_n` es el offset de cada nodo respecto del primero de su corredor, entre 0 y `C_c`.
 - **Operadores**: torneo (k = 3), cruce BLX-α (α = 0,3), mutación gaussiana (σ = 5 % del rango), elitismo de 2 individuos y reparación de verdes mínimos (`Supuesto`: 7 s).
-- **Parámetros**: población de 60 y 150 generaciones como máximo, con corte por presupuesto de 3 s en el Worker. Son parámetros de diseño a ajustar con benchmark.
+- **Parámetros**: población de 60 y 150 generaciones como máximo, con corte por presupuesto de 3 s en el backend. Son parámetros de diseño a ajustar con benchmark.
 - **Aptitud** (a minimizar):
 
 $$J = \sum_{n}\sum_{k} w_k\,D_{n,k} \;+\; \lambda_g \sum_{(n\to m)} \max\left(0,\ \ell^{\max}_{n\to m}-S_{n\to m}\right) \;+\; \lambda_e\, E_{\mathrm{CO_2}}$$
@@ -142,7 +145,7 @@ $$J = \sum_{n}\sum_{k} w_k\,D_{n,k} \;+\; \lambda_g \sum_{(n\to m)} \max\left(0,
 2. **Arranques**: combustible extra por parada y clase como `Supuesto`: L5 5 mL, M1 10 mL, Pesado 40 mL. Se reemplaza al calibrar.
 3. **CO₂**: gasolina 8 887 g/gal (≈2,35 kg/L) y diésel 10 180 g/gal (≈2,69 kg/L) ([EPA][epa]). Esto es consistente con los factores por defecto de [IPCC 2006][ipcc]: 69 300 y 74 100 kg/TJ.
    - Combustible por clase (`Supuesto`): L5 y M1 a gasolina; Pesado a diésel.
-4. **Altitud**: el CO₂ depende del carbono quemado, así que la altitud lo cambia poco por sí sola. El efecto principal a 3 824 m es más CO y HC por combustión incompleta, ya que hay menos oxígeno.
+4. **Altitud**: el factor de CO₂ por litro depende del carbono del combustible ([EPA][epa]), no de la altitud. Que a 3 824 m aumenten el CO y los HC por combustión incompleta es una hipótesis técnica sin fuente verificada en este documento (ver pendientes).
    - WayraFlow no modela CO ni HC. No se aplica ningún factor de altitud; si se agrega, irá marcado como `Supuesto`.
 
 ## 6. Escenarios predefinidos
@@ -201,7 +204,7 @@ Validación: en cada nodo se cumple `Σ(green + amber + allRed) = cycle_s`, y en
 ## 9. Fuera de alcance, supuestos y limitaciones
 
 **Fuera de alcance**
-- Backend, SUMO, control adaptativo en tiempo real e integración con controladores.
+- SUMO, control adaptativo en tiempo real e integración con controladores.
 - Peatones, ciclistas, prioridad de transporte público y vehículos de emergencia.
 - Modelado de CO, HC y NOx.
 
@@ -215,8 +218,8 @@ Validación: en cada nodo se cumple `Σ(green + amber + allRed) = cycle_s`, y en
 
 | Hito | Alcance | Criterio de aceptación | Commit sugerido |
 |---|---|---|---|
-| 1 | Red de la ciudad + vista nodo | El GeoJSON carga offline, muestra los 8 nodos y los 3 corredores con su atribución ODbL, y al seleccionar un nodo se abre la micro-simulación IDM con los 3 tipos de vehículo y temporizador | `feat(map): add Juliaca OSM network and IDM node view` |
-| 2 | Optimizador + escenarios | Se pueden elegir los 3 escenarios. El algoritmo genético termina en menos de 3 s en el Worker y mejora J frente al ciclo fijo; Webster queda disponible como referencia | `feat(optimizer): add genetic signal optimizer and city scenarios` |
+| 1 | Red de la ciudad + vista nodo | La red se carga en PostGIS y la API la sirve; el mapa funciona sin internet, muestra los 8 nodos y los 3 corredores con su atribución ODbL, y al seleccionar un nodo se abre la micro-simulación IDM con los 3 tipos de vehículo y temporizador | `feat(map): add Juliaca OSM network and IDM node view` |
+| 2 | Optimizador + escenarios | Se pueden elegir los 3 escenarios. El algoritmo genético termina en menos de 3 s en el backend Go y mejora J frente al ciclo fijo; Webster queda disponible como referencia | `feat(optimizer): add genetic signal optimizer and city scenarios` |
 | 3 | KPIs + exportación | Hay KPIs por nodo y por ciudad para las 3 estrategias. El JSON exportado cumple las validaciones de la sección 8 | `feat(kpi): add city KPIs and signal plan export` |
 
 ## 11. Referencias
