@@ -12,6 +12,9 @@ El resto de este documento es el contrato objetivo. Se implementa en
 `backend/internal/httpapi` sobre el mismo `http.ServeMux`; nada de lo que sigue
 existe todavía en el binario.
 
+El recorrido completo de una corrida está en
+[diagramas.md](diagramas.md#3-secuencia-de-una-corrida).
+
 ## Convenciones
 
 - Fechas en ISO 8601 UTC (`2026-11-27T20:15:00Z`).

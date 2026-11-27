@@ -3,6 +3,8 @@
 PostgreSQL 16 + PostGIS 3.4. El esquema vive en
 `backend/internal/db/migrations/` y se aplica solo, al arrancar la API.
 
+Diagrama entidad-relación: [diagramas.md](diagramas.md#4-modelo-de-datos).
+
 ## Cómo se aplican las migraciones
 
 - Los archivos se llaman `NNNN_descripcion.sql` y se embeben en el binario con

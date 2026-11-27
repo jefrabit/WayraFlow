@@ -32,6 +32,8 @@ Gestor / Evaluador
                              └──────────────────┘
 ```
 
+Versión renderizable con Mermaid: [diagramas.md](diagramas.md).
+
 ## 2. Contenedores
 
 | Contenedor | Responsabilidad | No hace |
