@@ -87,7 +87,7 @@ N8 se optimiza en forma aislada, solo con sus verdes y sin offset.
 | Vista nodo | Canvas 2D (en el navegador) | La micro-simulación IDM anima cientos de vehículos a 60 fps sin viajes al servidor |
 | Backend | Go (API HTTP/JSON) | Modelo de ciudad, algoritmo genético, Webster, emisiones, KPIs y exportación; cómputo rápido y concurrente |
 | Base de datos | PostgreSQL + PostGIS | Red vial, nodos y corredores como geometrías; escenarios, planes y corridas con sus KPIs |
-| Ejecución | Docker Compose | Un solo `docker compose up` levanta base de datos, backend y frontend |
+| Ejecución | Docker Compose | Un solo `docker compose up` levanta base de datos y backend; el frontend se suma cuando exista el workspace Angular |
 
 Reparto: Go calcula y persiste; Angular visualiza y ejecuta solo la micro-simulación de la vista nodo.
 

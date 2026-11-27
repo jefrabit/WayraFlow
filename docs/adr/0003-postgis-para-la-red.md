@@ -10,9 +10,14 @@ recorte por caja y la validación de pertenencia son operaciones espaciales.
 
 ## Decisión
 
-Guardar `network_nodes.geom` y `corridors.geom` como geometrías con SRID 4326, e
-indexar con GIST. La distancia de corredor se materializa en `corridor_nodes`
-para que el optimizador no la recalcule en cada corrida.
+Guardar la red como geometrías con SRID 4326 e indexarlas con GIST: los tramos
+crudos de OSM en `road_segments.geom` y los cruces en `nodes.geom`. `corridors`
+guarda solo identidad y nombre, porque su trazado se reconstruye uniendo los
+tramos y duplicarlo sería una segunda fuente de verdad.
+
+La distancia de cada tramo se materializa en `corridor_nodes.distance_m` para que
+el optimizador no la recalcule en cada corrida; el acumulado se obtiene sumando
+en orden de `position`.
 
 ## Consecuencias
 

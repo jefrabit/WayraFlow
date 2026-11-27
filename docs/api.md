@@ -1,68 +1,71 @@
 # API HTTP
 
-Base: `/api/v1`. Formato: JSON UTF-8. Errores con RFC 7807
-(`application/problem+json`).
+Formato: JSON UTF-8. Errores con RFC 7807 (`application/problem+json`).
+
+## Estado actual
+
+| Endpoint | Estado | Respuesta |
+|---|---|---|
+| `GET /health` | **Implementado** | `{"status":"ok"}` |
+
+El resto de este documento es el contrato objetivo. Se implementa en
+`backend/internal/httpapi` sobre el mismo `http.ServeMux`; nada de lo que sigue
+existe todavía en el binario.
 
 ## Convenciones
 
 - Fechas en ISO 8601 UTC (`2026-11-27T20:15:00Z`).
-- Identificadores de corrida: UUID v4.
-- Toda respuesta de error incluye `type`, `title`, `status`, `detail` e `instance`.
-- Los números de demanda van en veh/h y los tiempos en segundos, con sufijo en el
-  nombre del campo (`cycle_s`, `distance_m`, `co2_kg_h`).
+- Tiempos en segundos y distancias en metros, con sufijo en el nombre
+  (`cycle_s`, `distance_m`, `co2_kg_h`).
+- Estrategias válidas: `fixed`, `webster`, `ga` (así está en el `CHECK` de la
+  tabla `plans`).
 
-## Endpoints
+## Endpoints objetivo
 
-### `GET /healthz`
+### `GET /api/v1/network`
 
-```json
-{ "status": "ok", "version": "0.1.0", "database": "ok" }
-```
-
-### `GET /network`
-
-Devuelve la red en GeoJSON (`FeatureCollection`) con nodos y corredores. Acepta
+Red en GeoJSON (`FeatureCollection`) con nodos y corredores. Acepta
 `?bbox=minLon,minLat,maxLon,maxLat` para recortar.
 
-### `GET /scenarios`
+### `GET /api/v1/scenarios`
 
 ```json
 [
   {
     "id": "base",
-    "label": "Tráfico base",
-    "demandVehPerHour": { "C1": 700, "C2": 600, "C3": 650, "N8": 400 },
-    "mix": { "L5": 0.35, "M1": 0.35, "M2": 0.2, "N": 0.1 },
-    "assumption": true
+    "name": "Tráfico base",
+    "demand": {
+      "corridors": { "C1": 700, "C2": 600, "C3": 650, "N8": 400 },
+      "mix": { "L5": 0.35, "M1": 0.35, "M2": 0.2, "N": 0.1 }
+    }
   }
 ]
 ```
 
-### `POST /runs`
+### `POST /api/v1/plans`
 
-Cuerpo:
+Genera y persiste un plan.
 
 ```json
 {
   "scenarioId": "peak-regional",
-  "strategy": "genetic",
+  "strategy": "ga",
   "seed": 42,
   "config": { "populationSize": 60, "maxGenerations": 150, "budgetMs": 3000 }
 }
 ```
 
-Respuesta `201 Created` con el resultado completo de la corrida:
+Responde `201 Created` con el plan y su corrida:
 
 ```json
 {
-  "runId": "0f0f7f7e-6a1e-4b3e-9a2e-2f0f0f0f0f0f",
-  "scenarioId": "peak-regional",
-  "strategy": "genetic",
+  "planId": 17,
+  "runId": 23,
   "durationMs": 2740,
-  "plan": { "schema": "wayraflow.plan/v1", "...": "..." },
+  "plan": { "schema": "wayraflow.plan/v1", "city": "Juliaca" },
   "kpis": {
-    "avgDelay_s": { "fixed": 38.4, "webster": 31.2, "genetic": 27.9 },
-    "co2_kg_h": { "fixed": 412.5, "webster": 361.0, "genetic": 340.2 }
+    "avgDelay_s": { "fixed": 38.4, "webster": 31.2, "ga": 27.9 },
+    "co2_kg_h": { "fixed": 412.5, "webster": 361.0, "ga": 340.2 }
   }
 }
 ```
@@ -71,39 +74,35 @@ Errores:
 
 | Código | Cuándo |
 |---|---|
-| 400 | Escenario desconocido, `strategy` inválida o configuración fuera de rango |
-| 422 | El plan generado no cumple el contrato `wayraflow.plan/v1` |
+| 400 | Escenario desconocido, estrategia inválida o configuración fuera de rango |
+| 422 | El plan generado no cumple `wayraflow.plan/v1` |
 | 500 | Fallo interno; el `detail` no expone trazas |
 
-### `GET /runs/{runId}`
+### `GET /api/v1/plans/{planId}`
 
-Metadatos de la corrida y estado (`queued`, `running`, `done`, `failed`).
+El plan validado. Con `?download=1` agrega
+`Content-Disposition: attachment`.
 
-### `GET /runs/{runId}/plan`
+### `GET /api/v1/runs/{runId}`
 
-El plan validado, listo para descargar. `Content-Disposition: attachment` cuando
-se pide con `?download=1`.
-
-### `GET /runs/{runId}/kpis`
-
-Serie de KPIs por nodo y agregado de ciudad, con la línea base y la mejora.
+Los KPIs de la corrida y su duración.
 
 ## Contrato del plan
 
-El plan exportado es la interfaz pública del sistema. Su esquema vive en
-`internal/plan` y su validación es obligatoria antes de persistir o descargar:
+El plan exportado es la interfaz pública del sistema. Se valida antes de
+insertarlo en `plans` y antes de descargarlo:
 
 - `schema` debe ser `wayraflow.plan/v1`.
 - En cada nodo, `Σ(green_s + amber_s + allRed_s) === cycle_s`.
 - En cada corredor, `0 ≤ offset_s < cycle_s`.
 - Los nodos de un corredor comparten el ciclo del corredor.
-- Todo nodo referenciado existe; todo corredor referenciado existe.
+- Toda referencia a nodo o corredor existe.
 
 Un plan que no cumple se rechaza con `422` y no se guarda. Es preferible una
 corrida fallida a un plan inválido en manos del municipio.
 
 ## Versionado
 
-Cambios incompatibles suben el sufijo del esquema (`v2`). Cambios aditivos no
-suben versión, pero se documentan en `CHANGELOG.md`. La API no rompe clientes
-dentro de la misma versión mayor.
+Cambios incompatibles suben el sufijo (`v2`). Los aditivos no suben versión, pero
+se anotan en `CHANGELOG.md`. La API no rompe clientes dentro de la misma versión
+mayor.

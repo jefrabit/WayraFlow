@@ -1,57 +1,73 @@
 # Modelo de datos
 
-PostgreSQL 16 + PostGIS 3.4. La red vial se guarda como geometría porque las
-distancias de corredor, la pertenencia de nodos y el recorte por caja son
-consultas espaciales, no aritmética de listas.
+PostgreSQL 16 + PostGIS 3.4. El esquema vive en
+`backend/internal/db/migrations/` y se aplica solo, al arrancar la API.
+
+## Cómo se aplican las migraciones
+
+- Los archivos se llaman `NNNN_descripcion.sql` y se embeben en el binario con
+  `//go:embed`, así que el contenedor no necesita el directorio de migraciones.
+- `db.Migrate` toma un advisory lock (`72617119`) antes de aplicar nada: dos
+  réplicas de la API no pueden migrar a la vez.
+- El avance se registra en `schema_migrations (version, name, applied_at)`.
+- Cada migración corre dentro de una transacción: si falla, no deja el esquema a
+  medias.
+- Una migración ya aplicada no se edita. El cambio va en la siguiente.
 
 ## Tablas
 
-| Tabla | Qué guarda | Por qué |
+| Tabla | Columnas relevantes | Para qué |
 |---|---|---|
-| `corridors` | Corredores coordinables con su geometría | Permite calcular longitud real y validar que los nodos caen sobre el trazado |
-| `network_nodes` | Los 8 nodos críticos, su nodo OSM y su corredor | Fuente única de verdad de la topología |
-| `corridor_nodes` | Orden y distancia acumulada de cada nodo en su corredor | El optimizador necesita la secuencia y la distancia para los desfases |
-| `scenarios` | Demanda por corredor y mezcla vehicular | Cada escenario es un dato, no una constante en el código |
-| `runs` | Cada corrida con su semilla y configuración | Reproducibilidad: misma semilla, mismo resultado |
-| `plans` | El plan validado en JSON | Se conserva el contrato exacto que se exportó |
-| `kpis` | Métrica, línea base y candidato | Comparación sin recalcular |
+| `road_segments` | `id`, `osm_way_id` (único), `name`, `ref`, `highway`, `geom LineString(4326)` | La red cruda que devuelve Overpass: 566 vías |
+| `nodes` | `id` (`N1`…`N8`), `name`, `osm_node_id`, `signalized`, `geom Point(4326)` | Los cruces críticos del README 3.3 |
+| `corridors` | `id` (`C1`…`C3`), `name` | Los corredores coordinables |
+| `corridor_nodes` | `corridor_id`, `node_id`, `position`, `distance_m` | Orden y distancia de tramo dentro del corredor |
+| `scenarios` | `id`, `name`, `description`, `demand jsonb` | Los tres escenarios del README 6 |
+| `plans` | `id`, `scenario_id`, `strategy`, `plan jsonb`, `created_at` | El plan generado, tal como se exporta |
+| `runs` | `id`, `plan_id`, `kpis jsonb`, `duration_ms`, `created_at` | La evaluación de un plan |
 
 ## Decisiones
 
-- **`jsonb` para demanda y mezcla**: la forma cambia si se agrega un corredor o
-  una clase vehicular. Normalizarlo en dos tablas más agrega joins sin beneficio
-  para un volumen de tres escenarios.
-- **`jsonb` para el plan**: el contrato `wayraflow.plan/v1` es la interfaz
-  pública. Guardarlo tal cual se exporta evita divergencias entre lo persistido y
-  lo descargado.
-- **`numeric` para KPIs**: se comparan y se muestran; el punto flotante agrega
-  ruido innecesario en la base.
-- **Sin `updated_at`**: las corridas y los planes son inmutables. Si un plan
-  cambia, es otra corrida.
+- **`road_segments` separado de `corridors`**: OSM entrega vías sueltas; un
+  corredor es una agrupación lógica de tres o cuatro de ellas. Guardar la
+  geometría una sola vez evita duplicarla y desincronizarla.
+- **`corridors` sin geometría**: si hace falta dibujar el corredor, se unen sus
+  tramos. La fuente de verdad geométrica es `road_segments`.
+- **`demand` como `jsonb`**: incluye demanda por corredor y mezcla vehicular. Son
+  tres escenarios; normalizarlos en dos tablas más agrega joins sin beneficio.
+- **`plans` y `runs` separados**: un mismo plan puede evaluarse en varias
+  corridas (otra semilla, otro horizonte). La corrida es la medición; el plan es
+  el artefacto.
+- **`distance_m` es distancia de tramo**, no acumulada desde el inicio del
+  corredor. El acumulado se obtiene sumando en orden de `position`, que es lo que
+  necesita el cálculo de desfases.
 
 ## Invariantes
 
-Los que la base puede sostener sola:
+Los sostiene la base:
 
-- `network_nodes.osm_node` es único.
-- `corridor_nodes` no repite posición dentro de un corredor.
-- `distance_m` no es negativo.
-- `strategy` y `status` están en dominios cerrados.
+- `road_segments.osm_way_id` es único.
+- `(corridor_id, position)` es único: no hay dos nodos en el mismo lugar del
+  corredor.
+- `distance_m >= 0`.
+- `strategy` está en `fixed`, `webster`, `ga`.
 
-Los que valida la aplicación, porque son del dominio y no de la tabla:
+Los valida la aplicación, porque son del dominio:
 
 - `Σ(green + amber + allRed) = cycle_s` por nodo.
 - `0 ≤ offset < cycle_s` por corredor.
 - La mezcla vehicular suma 1.
 
+## Deuda técnica anotada
+
+- `nodes.osm_node_id` no tiene restricción de unicidad. Un nodo de OSM no debería
+  repetirse; conviene un índice único en la migración `0002`.
+- `plans` no guarda si el plan pasó la validación. Hoy se valida antes de
+  insertar; si se quiere auditar después, falta una columna `valid`.
+- No hay tabla de usuarios ni roles: está fuera de alcance del MVP.
+
 ## Índices
 
-- GIST sobre `network_nodes.geom` y `corridors.geom` para recortes por caja.
-- B-tree sobre `runs.created_at` para listar corridas recientes.
-- Clave primaria compuesta en `kpis` para lectura por corrida.
-
-## Migraciones
-
-Los scripts de `db/` se aplican en orden con `psql -f` y solo cuando el volumen
-está vacío. Los cambios posteriores van en archivos numerados de forma
-incremental. No se edita un script ya aplicado.
+- GIST sobre `road_segments.geom` y `nodes.geom` para recortes por caja.
+- Clave primaria compuesta en `corridor_nodes` y en el resto de tablas por `id`.
+- `plans.scenario_id` y `runs.plan_id` para las lecturas por corrida.

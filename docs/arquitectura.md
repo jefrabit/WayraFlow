@@ -36,8 +36,8 @@ Gestor / Evaluador
 
 | Contenedor | Responsabilidad | No hace |
 |---|---|---|
-| `web` (Angular + nginx) | Mapa, vista de nodo con IDM en Canvas, tablero de KPIs, descarga del plan | No calcula el plan ni guarda estado |
-| `api` (Go) | Simulación mesoscópica, algoritmo genético, Webster, emisiones, KPIs, validación y exportación | No renderiza ni conoce el DOM |
+| `web` (Angular + nginx) — *propuesto* | Mapa, vista de nodo con IDM en Canvas, tablero de KPIs, descarga del plan | No calcula el plan ni guarda estado |
+| `backend` (Go) | Simulación mesoscópica, algoritmo genético, Webster, emisiones, KPIs, validación y exportación | No renderiza ni conoce el DOM |
 | `db` (PostGIS) | Red vial como geometrías, escenarios, corridas, planes y KPIs | No ejecuta lógica de negocio |
 
 El reparto es deliberado: **Go calcula y persiste, Angular visualiza**. La única
@@ -46,15 +46,26 @@ navegador porque necesita 60 fps y no requiere persistencia.
 
 ## 3. Componentes del backend
 
+Implementado hoy:
+
 ```
-cmd/api            arranque, configuración, rutas
-internal/domain    modelos y reglas puras (sin HTTP, sin SQL)
-internal/sim       modelo mesoscópico de ciudad
-internal/optim    algoritmo genético, Webster, reparación de verdes
-internal/emission  factores de consumo y CO₂
-internal/plan      contrato wayraflow.plan/v1 y validación
-internal/store     PostgreSQL/PostGIS (pgx)
-internal/httpapi   handlers, DTOs, errores RFC 7807
+cmd/api                  arranque y configuración
+cmd/osmextract           extracción de la red desde Overpass a GeoJSON
+internal/db              pool pgx y migraciones embebidas
+internal/db/migrations   esquema versionado (0001_init.sql)
+internal/httpapi         router y escritura de respuestas JSON
+internal/osm             parseo de Overpass y generación de GeoJSON
+```
+
+Propuesto, todavía no existe:
+
+```
+internal/domain          modelos y reglas puras (sin HTTP, sin SQL)
+internal/sim             modelo mesoscópico de ciudad
+internal/optim           algoritmo genético, Webster, reparación de verdes
+internal/emission        factores de consumo y CO₂
+internal/plan            contrato wayraflow.plan/v1 y validación
+internal/store           repositorios sobre pgx
 ```
 
 Regla de dependencias, de adentro hacia afuera:
@@ -81,12 +92,12 @@ src/app/shared    componentes de presentación, formato, tokens
 ## 5. Flujo de una corrida
 
 1. El usuario elige escenario y estrategia en la SPA.
-2. `POST /api/v1/runs` con `scenarioId` y `strategy`.
-3. La API carga la red desde PostGIS (nodos, corredores, distancias).
+2. `POST /api/v1/plans` con `scenarioId`, `strategy` y `seed`.
+3. La API carga la red desde PostGIS (nodos, corredores, distancias de tramo).
 4. Simula el plan de ciclo fijo y guarda la línea base.
 5. Ejecuta Webster como referencia y el algoritmo genético como candidato.
 6. Valida el plan contra el contrato `wayraflow.plan/v1`.
-7. Persiste corrida, plan y KPIs; devuelve el resultado.
+7. Persiste el plan y su corrida con los KPIs; devuelve ambos identificadores.
 8. La SPA pinta el mapa, la tabla y los KPIs; el botón de descarga sirve el JSON
    ya validado.
 

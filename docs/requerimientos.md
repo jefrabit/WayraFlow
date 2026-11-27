@@ -17,7 +17,7 @@ tiempo real, peatones y ciclistas.
 
 | ID | Requerimiento | Criterio de aceptación | README | Módulo |
 |---|---|---|---|---|
-| FR-01 | Cargar la red vial de Juliaca sin internet | Con la red desconectada, el mapa muestra los 8 nodos y los 3 corredores, con atribución ODbL visible | 3.1, 4.2 | `db/init`, `features/map` |
+| FR-01 | Cargar la red vial de Juliaca sin internet | Con la red desconectada, el mapa muestra los 8 nodos y los 3 corredores, con atribución ODbL visible | 3.1, 4.2 | `internal/db`, `features/map` |
 | FR-02 | Representar el plan actual de ciclo fijo | Para cualquier escenario, el ciclo fijo produce 90 s y verdes iguales en todos los nodos | 4.6 | `internal/optim` |
 | FR-03 | Calcular el ciclo de Webster | Con `L=10` y `Y` del escenario, el ciclo sale de `(1,5L+5)/(1−Y)` y se recorta a 40–120 s | 4.6 | `internal/optim` |
 | FR-04 | Optimizar verdes y desfases con GA | El GA respeta verdes mínimos de 7 s, `Σg + L = C` y `0 ≤ θ < C`; termina dentro de 3 s | 4.5 | `internal/optim` |
@@ -27,6 +27,11 @@ tiempo real, peatones y ciclistas.
 | FR-08 | Comparar estrategias en una vista | El tablero muestra ciclo fijo, Webster y GA con la mejora porcentual | 7, 10 | `features/kpis` |
 | FR-09 | Elegir entre los 3 escenarios | Cambiar de escenario recalcula la corrida y actualiza los KPIs | 6 | `features/plan` |
 | FR-10 | Micro-simular un nodo con IDM | La vista de nodo anima los 3 tipos de vehículo a 60 fps con el semáforo como vehículo virtual | 4.4 | `features/node-sim` |
+
+**Estado de implementación**: hoy existen `internal/db` (esquema y migraciones
+embebidas) y `internal/httpapi` (`GET /health`). Los módulos `internal/optim`,
+`internal/sim`, `internal/plan` y `features/*` son el destino del MVP, no código
+existente. Este documento describe el sistema completo, no solo lo ya escrito.
 
 ## 3. Requerimientos no funcionales
 
