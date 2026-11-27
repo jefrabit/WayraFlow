@@ -245,7 +245,12 @@ Ejemplo abreviado de esquema JSON. Es un formato propio de WayraFlow: no garanti
       ]
     }
   ],
-  "kpis": { "avgDelay_s": { "fixed": 0, "plan": 0 }, "co2_kg_h": { "fixed": 0, "plan": 0 } }
+  "kpis": {
+    "fixed": { "avgDelay_s": 16.11, "co2_kg_h": 225.0 },
+    "webster": { "avgDelay_s": 9.04, "co2_kg_h": 251.1 },
+    "ga": { "avgDelay_s": 9.04, "co2_kg_h": 251.1 },
+    "improvement_pct": { "webster": 43.9, "ga": 43.9 }
+  }
 }
 ```
 
@@ -266,11 +271,16 @@ Validación: en cada nodo se cumple `Σ(green + amber + allRed) = cycle_s`, y en
 
 ## 10. Hoja de ruta
 
-| Hito | Alcance | Criterio de aceptación | Commit sugerido |
+Los tres hitos del alcance original están entregados. Lo que sigue es lo que
+falta para llevar el prototipo a producción.
+
+| Hito | Alcance | Estado | Evidencia |
 |---|---|---|---|
-| 1 | Red de la ciudad + vista nodo | La red se carga en PostGIS y la API la sirve; el mapa funciona sin internet, muestra los 8 nodos y los 3 corredores con su atribución ODbL, y al seleccionar un nodo se abre la micro-simulación IDM con los 3 tipos de vehículo y temporizador | `feat(map): add Juliaca OSM network and IDM node view` |
-| 2 | Optimizador + escenarios | Se pueden elegir los 3 escenarios. El algoritmo genético termina en menos de 3 s en el backend Go y mejora J frente al ciclo fijo; Webster queda disponible como referencia | `feat(optimizer): add genetic signal optimizer and city scenarios` |
-| 3 | KPIs + exportación | Hay KPIs por nodo y por ciudad para las 3 estrategias. El JSON exportado cumple las validaciones de la sección 8 | `feat(kpi): add city KPIs and signal plan export` |
+| 1 | Red de la ciudad + vista de nodo | Entregado: la red se carga en PostGIS y la API la sirve; el mapa muestra los 8 nodos y los 3 corredores con atribución ODbL, y el nodo seleccionado abre la micro-simulación IDM | `internal/db`, `frontend/src/app/features/map`, `features/node-sim` |
+| 2 | Optimizador + escenarios | Entregado: el GA corre dentro del presupuesto y compite con el ciclo fijo y Webster; mejora al ciclo fijo 43,9 % en base y 30,9 % en feria, y empata con él en hora punta | `internal/optim`, `cmd/bench` |
+| 3 | KPIs + exportación | Entregado: KPIs por nodo y por ciudad para las tres estrategias, plan validado antes de guardarse y descarga con `?download=1` | `internal/sim`, `internal/plan`, `docs/api.md` |
+| 4 | Stack reproducible | Entregado: Docker Compose con PostGIS, API y nginx; integración continua con tests, build y ambas imágenes | `docker-compose.yml`, `.github/workflows/ci.yml` |
+| 5 | Calibración de campo | Pendiente: aforos, ciclo fijo real y conteo de mezcla vehicular para reemplazar los `Supuesto` | — |
 
 ## 11. Referencias
 

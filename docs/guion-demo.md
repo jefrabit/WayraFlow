@@ -6,8 +6,8 @@ todos los equipos, así que asumimos 5 minutos por equipo y dejamos margen.
 ## Antes de empezar
 
 - Stack levantado: `docker compose up -d` y `docker compose ps` en verde.
-- Escenario `peak-regional` cargado y una corrida ya hecha (no calcular en vivo
-  si el jurado tiene prisa).
+- Escenario `hora-punta-regional` cargado y una corrida ya hecha (no calcular en
+  vivo si el jurado tiene prisa).
 - Pestaña del plan JSON abierta, por si falla la descarga.
 - Video de respaldo de 60 s, grabado antes.
 
@@ -26,8 +26,10 @@ Mostrar el mapa con los 8 nodos y los 3 corredores. Señalar la atribución ODbL
 > Webster como referencia analítica y nuestro algoritmo genético."
 
 Cambiar de estrategia y leer los KPIs: espera promedio, paradas, CO₂ y el
-porcentaje de mejora. Aclarar en una frase que son estimaciones del modelo, no
-mediciones de calle.
+porcentaje de mejora. En tráfico base la espera baja de 16,1 s a 9,0 s
+(43,9 %); en día de feria, de 19,3 s a 13,3 s (30,9 %). Aclarar en una frase
+que son estimaciones del modelo, no mediciones de calle, y que en hora punta el
+GA empata con el ciclo fijo: no se inventa una mejora que el modelo no da.
 
 ## 1:15 – 2:00 · El plan
 
@@ -58,4 +60,4 @@ vehículo virtual, la cola descargando durante el verde.
 | ¿Cómo validan el ahorro? | Con un piloto: km, tiempo, combustible y CO₂ antes y después. Hoy comparamos modelos entre sí. |
 | ¿Por qué Go y no Python? | El GA evalúa 60 individuos por generación; Go mantiene el presupuesto de 3 s sin pelear con el GIL. |
 | ¿Funciona sin internet? | Sí: la red está versionada y el mapa no usa teselas externas. |
-| ¿Qué falta? | Calibración en campo, vista de nodo pulida y el informe de resultados. |
+| ¿Qué falta? | Calibración en campo y un piloto con aforos reales en una intersección. |
