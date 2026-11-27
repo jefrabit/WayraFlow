@@ -7,6 +7,54 @@ Compara los planes de ciclo fijo actuales con planes optimizados por un algoritm
 Está dirigida a gestores municipales de tránsito y a evaluadores técnicos.
 Demuestra que un plan de tiempos exportable, sin hardware nuevo, puede reducir espera, colas y CO₂ en los semáforos existentes.
 
+## 1.1 Cómo ejecutar
+
+Requisitos: Docker 24+ para el stack completo; Go 1.23+ y Node 22+ para
+desarrollo sin contenedores.
+
+### Todo con Docker
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+- Tablero: <http://localhost:4200>
+- API: <http://localhost:8080/api/v1/scenarios>
+- Salud: <http://localhost:8080/health>
+
+### Sin base de datos (demo rápida)
+
+```bash
+cd backend
+go run ./cmd/api
+```
+
+Sin `DATABASE_URL` la API usa el catálogo en memoria: los mismos escenarios,
+planes y KPIs, sin PostGIS. El healthcheck responde igual y los planes se
+pierden al reiniciar.
+
+### Desarrollo del frontend
+
+```bash
+cd frontend
+npm ci
+npm start
+```
+
+`ng serve` reenvía `/api` a `http://localhost:8080` según `proxy.conf.json`.
+
+### Pruebas
+
+```bash
+cd backend
+go test ./...
+go run ./cmd/bench
+```
+
+`cmd/bench` imprime la comparación de las tres estrategias en cada escenario y
+es la evidencia de los números que se citan en la sección 7.
+
 ## 2. Problema urbano
 
 | Hecho | Fuente |

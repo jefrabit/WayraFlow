@@ -74,18 +74,18 @@ el sistema completo, no solo lo ya escrito.
 
 | Requerimiento | Módulo | Prueba | Estado |
 |---|---|---|---|
-| FR-01 | `features/map` | Componente con GeoJSON fixture | Pendiente |
-| FR-02, FR-03, FR-04 | `internal/optim` | Tabla de casos por escenario | Pendiente |
-| FR-05, FR-06 | `internal/sim` | Semilla fija y comparación de agregados | Pendiente |
-| FR-07 | `internal/plan` | Plan válido, suma de fases, offset fuera de rango | Pendiente |
-| FR-08, FR-09 | `features/kpis`, `features/plan` | Prueba de componente del tablero | Pendiente |
-| FR-10 | `features/node-sim` | Manual con cronómetro y `requestAnimationFrame` | Pendiente |
+| FR-01 | `frontend/src/app/features/map` | Verificación manual con la red real servida por la API | Implementado |
+| FR-02, FR-03, FR-04 | `internal/optim` | `optim_test.go`: tabla por escenario y contrato del plan | Implementado |
+| FR-05, FR-06 | `internal/sim` | `sim_test.go`: determinismo y comparación de agregados | Implementado |
+| FR-07 | `internal/plan` | `validate_test.go`: plan válido, suma de fases, offset fuera de rango | Implementado |
+| FR-08, FR-09 | `frontend/src/app/features/dashboard` | Verificación manual contra la API; sin prueba de componente | Implementado |
+| FR-10 | `frontend/src/app/features/node-sim` | Verificación manual con `requestAnimationFrame` | Implementado |
 | FR-11 | `internal/httpapi` | `router_test.go` | Implementado |
 | FR-12 | `internal/db`, `cmd/osmextract` | `migrate_test.go`, `network_test.go`, `geojson_test.go` | Implementado |
-| FR-13 | `internal/store` | Integración contra PostGIS | Pendiente |
-| FR-14 | `features/kpis` | Prueba de exportación | Pendiente |
-| NFR-01 | `internal/optim` | `go test -bench` y medición en la demo | Pendiente |
-| NFR-02 | `internal/optim`, `internal/sim` | Determinismo con semilla repetida | Pendiente |
+| FR-13 | `internal/store`, `internal/httpapi` | `router_test.go`: listado y lectura de corridas | Implementado |
+| FR-14 | — | — | No implementado |
+| NFR-01 | `cmd/bench` | `go run ./cmd/bench` con la medición de la demo | Implementado |
+| NFR-02 | `internal/optim`, `internal/sim` | `sim_test.go` repite la corrida con la misma semilla | Implementado |
 | NFR-09 | `docker-compose.yml` | Revisión: sin secretos versionados | Implementado |
 | NFR-12 | `cmd/api` | Log de request en `main.go` | Implementado |
 
