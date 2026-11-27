@@ -1,0 +1,32 @@
+# Local development stack. Credentials below are development defaults only;
+# override them through environment variables, never reuse them in production.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-wayraflow}
+      POSTGRES_USER: ${POSTGRES_USER:-wayraflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wayraflow_dev}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://${POSTGRES_USER:-wayraflow}:${POSTGRES_PASSWORD:-wayraflow_dev}@db:5432/${POSTGRES_DB:-wayraflow}?sslmode=disable
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
