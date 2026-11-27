@@ -1,6 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { ApiService, FeatureCollection, NodeKPI, PlanResponse, Scenario, Strategy } from '../../core/api';
+import { ApiService, CorridorPlan, FeatureCollection, NodeKPI, PlanResponse, Scenario, Strategy } from '../../core/api';
 import { NetworkMap } from '../map/network-map';
 import { NodeSim } from '../node-sim/node-sim';
 
@@ -58,6 +58,30 @@ import { NodeSim } from '../node-sim/node-sim';
           El GA explora verdes y desfases y compite contra el ciclo fijo y Webster. La selección final
           se mide con el simulador, así que nunca devuelve un plan peor que la línea base.
         </p>
+
+        @if (result(); as r) {
+          <h2>Plan #{{ r.planId }}</h2>
+          <table class="plan">
+            <thead>
+              <tr><th>Nodo</th><th>Ciclo</th><th>V1</th><th>V2</th></tr>
+            </thead>
+            <tbody>
+              @for (n of r.plan.nodes; track n.id) {
+                <tr>
+                  <td>{{ n.id }}</td>
+                  <td>{{ n.cycle_s | number: '1.0-0' }}</td>
+                  <td>{{ n.phases[0].green_s | number: '1.0-0' }}</td>
+                  <td>{{ n.phases[1] ? (n.phases[1].green_s | number: '1.0-0') : '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <h3>Desfases por corredor</h3>
+          @for (c of r.plan.corridors; track c.id) {
+            <p class="offset"><b>{{ c.id }}</b> {{ offsets(c) }}</p>
+          }
+          <p class="schema">Contrato {{ r.plan.schema }} válido</p>
+        }
       </aside>
 
       <section class="panel map-panel">
@@ -322,6 +346,40 @@ import { NodeSim } from '../node-sim/node-sim';
       font-size: 11px;
       line-height: 1.5;
     }
+    table.plan {
+      font-size: 11px;
+    }
+    table.plan th,
+    table.plan td {
+      padding: 4px 2px;
+    }
+    h3 {
+      margin: 14px 0 6px;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #6d8aa6;
+    }
+    .offset {
+      margin: 0 0 4px;
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      color: #8aa4bd;
+    }
+    .offset b {
+      color: #57c4a8;
+      margin-right: 4px;
+    }
+    .schema {
+      margin: 12px 0 0;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid #1f4a3d;
+      background: #10251f;
+      color: #57c4a8;
+      font-size: 10px;
+      font-family: ui-monospace, monospace;
+    }
     .error {
       margin: 10px 0 0;
       color: #ef476f;
@@ -496,5 +554,11 @@ export class Dashboard {
     if (res) {
       window.open(this.api.downloadUrl(res.planId), '_blank');
     }
+  }
+
+  offsets(corridor: CorridorPlan): string {
+    return Object.entries(corridor.offsets_s)
+      .map(([id, seconds]) => `${id} ${seconds.toFixed(0)}`)
+      .join(' · ');
   }
 }
