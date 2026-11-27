@@ -3,47 +3,87 @@ package main
 
 import (
 	"context"
-	"log"
+	"errors"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"wayraflow/backend/internal/db"
 	"wayraflow/backend/internal/httpapi"
+	"wayraflow/backend/internal/store"
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+
+	var (
+		st   store.Store
+		pool *pgxpool.Pool
+	)
 	if url := os.Getenv("DATABASE_URL"); url != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		pool, err := db.Connect(ctx, url)
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		p, err := db.Connect(ctx, url)
 		if err != nil {
-			log.Fatalf("database: %v", err)
+			slog.Error("database", "error", err)
+			os.Exit(1)
 		}
-		if err := db.Migrate(ctx, pool); err != nil {
-			log.Fatalf("migrations: %v", err)
+		if err := db.Migrate(ctx, p); err != nil {
+			slog.Error("migrations", "error", err)
+			os.Exit(1)
 		}
-		log.Print("database migrations applied")
+		slog.Info("database migrations applied")
 		if path := os.Getenv("NETWORK_FILE"); path != "" {
-			if err := loadNetwork(ctx, pool, path); err != nil {
-				log.Fatalf("network: %v", err)
+			if err := loadNetwork(ctx, p, path); err != nil {
+				slog.Error("network", "error", err)
+				os.Exit(1)
 			}
 		}
-		cancel()
-		defer pool.Close()
+		pool = p
+		st = store.NewPostgres(p)
 	} else {
-		log.Print("DATABASE_URL not set; starting without database")
+		slog.Warn("DATABASE_URL not set; using the in-memory store")
+		st = store.NewMemory()
 	}
+	defer st.Close()
 
 	addr := ":" + envOr("PORT", "8080")
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           httpapi.NewRouter(),
+		Handler:           httpapi.NewRouter(st),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
-	log.Printf("wayraflow api listening on %s", addr)
-	log.Fatal(srv.ListenAndServe())
+
+	go func() {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+		<-sig
+		slog.Info("shutting down")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}()
+
+	slog.Info("wayraflow api listening", "addr", addr, "storage", storageName(pool))
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		slog.Error("server", "error", err)
+		os.Exit(1)
+	}
+}
+
+func storageName(pool *pgxpool.Pool) string {
+	if pool == nil {
+		return "memory"
+	}
+	return "postgres"
 }
 
 func loadNetwork(ctx context.Context, pool *pgxpool.Pool, path string) error {
@@ -56,7 +96,7 @@ func loadNetwork(ctx context.Context, pool *pgxpool.Pool, path string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("road network loaded: %d segments from %s", n, path)
+	slog.Info("road network loaded", "segments", n, "file", path)
 	return nil
 }
 
