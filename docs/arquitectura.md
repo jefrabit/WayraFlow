@@ -53,7 +53,7 @@ Implementado hoy:
 ```
 cmd/api                  arranque y configuración
 cmd/osmextract           extracción de la red desde Overpass a GeoJSON
-internal/db              pool pgx y migraciones embebidas
+internal/db              pool pgx, migraciones embebidas y carga de la red
 internal/db/migrations   esquema versionado (0001_init.sql)
 internal/httpapi         router y escritura de respuestas JSON
 internal/osm             parseo de Overpass y generación de GeoJSON

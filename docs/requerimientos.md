@@ -45,8 +45,9 @@ Prioridad según MoSCoW: **D** debe, **S** debería, **P** podría.
 | FR-13 | Consultar corridas anteriores | S | Se puede listar y abrir una corrida pasada con sus KPIs y su plan | — | `internal/store` |
 | FR-14 | Exportar los KPIs a CSV | P | El tablero descarga un CSV con una fila por nodo y las tres estrategias | 7 | `features/kpis` |
 
-**Estado de implementación**: hoy existen `internal/db` (esquema y migraciones
-embebidas), `internal/httpapi` (`GET /health`), `internal/osm` y `cmd/osmextract`.
+**Estado de implementación**: hoy existen `internal/db` (esquema, migraciones
+embebidas, semilla de nodos y corredores, y carga de la red desde GeoJSON),
+`internal/httpapi` (`GET /health`), `internal/osm` y `cmd/osmextract`.
 Los módulos `internal/optim`, `internal/sim`, `internal/plan`, `internal/store` y
 `features/*` son el destino del MVP, no código existente. Este documento describe
 el sistema completo, no solo lo ya escrito.
@@ -80,7 +81,7 @@ el sistema completo, no solo lo ya escrito.
 | FR-08, FR-09 | `features/kpis`, `features/plan` | Prueba de componente del tablero | Pendiente |
 | FR-10 | `features/node-sim` | Manual con cronómetro y `requestAnimationFrame` | Pendiente |
 | FR-11 | `internal/httpapi` | `router_test.go` | Implementado |
-| FR-12 | `internal/db`, `cmd/osmextract` | `migrate_test.go`, `geojson_test.go` | Parcial: extrae, no carga |
+| FR-12 | `internal/db`, `cmd/osmextract` | `migrate_test.go`, `network_test.go`, `geojson_test.go` | Implementado |
 | FR-13 | `internal/store` | Integración contra PostGIS | Pendiente |
 | FR-14 | `features/kpis` | Prueba de exportación | Pendiente |
 | NFR-01 | `internal/optim` | `go test -bench` y medición en la demo | Pendiente |

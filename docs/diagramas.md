@@ -45,11 +45,11 @@ flowchart TB
     SPA -->|"HTTP/JSON"| API
     API -->|"pgx"| DB
     EXT -->|"genera"| GEO
-    GEO -.->|"carga inicial<br/>(pendiente)"| DB
+    GEO -->|"carga al arrancar<br/>(NETWORK_FILE)"| DB
 ```
 
-Implementado hoy: `API` con `GET /health`, `internal/db` con migraciones y `EXT`.
-Pendiente: `SPA` y la carga del GeoJSON a PostGIS.
+Implementado hoy: la API, las migraciones, la semilla de nodos y corredores, la
+carga del GeoJSON y el extractor. Pendiente: la SPA.
 
 ## 3. Secuencia de una corrida
 

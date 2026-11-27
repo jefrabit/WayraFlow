@@ -16,6 +16,9 @@ Diagrama entidad-relación: [diagramas.md](diagramas.md#4-modelo-de-datos).
   medias.
 - Una migración ya aplicada no se edita. El cambio va en la siguiente.
 
+La `0002` siembra los 8 nodos, los 3 corredores y el orden con sus distancias de
+tramo. Los tramos de la red se cargan al arrancar desde `NETWORK_FILE`.
+
 ## Tablas
 
 | Tabla | Columnas relevantes | Para qué |
